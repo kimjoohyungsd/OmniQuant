@@ -190,7 +190,7 @@ def main():
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", type=str, help="model name of model path")
-    parser.add_argument("--cache_dir", default="./cache", type=str, help="cache dir of dataset, leading to faster debug")
+    parser.add_argument("--cache_dir", default=None, type=str, help="cache dir of dataset, leading to faster debug")
     parser.add_argument("--output_dir", default="../log/", type=str, help="direction of logging file")
     parser.add_argument("--save_dir", default=None, type=str, help="direction for saving fake quantization model")
     parser.add_argument("--resume", type=str, default=None)
@@ -259,9 +259,9 @@ def main():
     
     # load model
     if args.net is None:
-        args.net = args.model.split('/')[-1]
+        args.net = args.model.split('/')[-1] # meta-llama/Llama-2-7b-hf => Llama-2-7b-hf
     # assert args.net in net_choices
-    args.model_family = args.net.split('-')[0]
+    args.model_family = args.net.split('-')[0] # Llama-2-7b-hf => Llama
     lm = LMClass(args)
     lm.seqlen = 2048
     lm.model.eval()
@@ -271,10 +271,10 @@ def main():
     
 
     args.weight_quant_params = {
-        "n_bits": args.wbits,
-        "per_channel_axes": [0],
-        "symmetric": args.symmetric,
-        "dynamic_method": args.w_dynamic_method,
+        "n_bits": args.wbits, # Quantization 하는 Bits 수
+        "per_channel_axes": [0], # Quantization하는 
+        "symmetric": args.symmetric, # Uniform Quantization이 Symmetric한지 
+        "dynamic_method": args.w_dynamic_method, #
         "group_size": args.group_size,
         "lwc":args.lwc,
         "disable_zero_point": args.disable_zero_point

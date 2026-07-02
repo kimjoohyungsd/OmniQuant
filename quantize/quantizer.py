@@ -138,11 +138,11 @@ class UniformAffineQuantizer(nn.Module):
                 x = torch.cat((x,pad_zeros),dim=1)
                 x = x.reshape(-1,self.group_size)
         reduce_shape = [-1]
-        xmin = x.amin(reduce_shape, keepdim=True)
-        xmax =  x.amax(reduce_shape, keepdim=True)
+        xmin = x.amin(reduce_shape, keepdim=True) # [Dim0,1]
+        xmax =  x.amax(reduce_shape, keepdim=True) # [Dim0,1]
         if self.lwc:
-            xmax = self.sigmoid(self.upbound_factor)*xmax
-            xmin = self.sigmoid(self.lowbound_factor)*xmin
+            xmax = self.sigmoid(self.upbound_factor)*xmax #[Dim0,1]
+            xmin = self.sigmoid(self.lowbound_factor)*xmin # [Dim0, 1]
         if self.symmetric:
             abs_max = torch.max(xmax.abs(),xmin.abs())
             scale = abs_max / (2**(self.n_bits-1)-1)

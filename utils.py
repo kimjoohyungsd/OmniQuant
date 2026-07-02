@@ -57,7 +57,7 @@ def create_logger(output_dir, dist_rank=0, name=''):
     # create logger
     logger = logging.getLogger(name)
     logger.setLevel(logging.INFO)
-    logger.propagate = False
+    logger.propagate = False # 처리한 로그 메세지를 상위(로거) 위로 전파하지 않겠다
 
     # create formatter
     fmt = '[%(asctime)s %(name)s] (%(filename)s %(lineno)d): %(levelname)s %(message)s'
