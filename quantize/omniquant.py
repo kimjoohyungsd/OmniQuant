@@ -61,11 +61,20 @@ def omniquant(
         model.model.embed_tokens = model.model.embed_tokens.to(dev)
         model.model.norm = model.model.norm.to(dev)
         DecoderLayer = QuantLlamaDecoderLayer
-        pairs = {
-            "q_proj":"qkv",
-            "o_proj":"out",
-            "up_proj":"fc1"
-        }
+        if args.down_proj_smooth:
+            pairs = {
+                "q_proj":"qkv",
+                "o_proj":"out",
+                "up_proj":"fc1",
+                "down_proj":"fc2",
+            }
+        else:
+            pairs = {
+                "q_proj":"qkv",
+                "o_proj":"out",
+                "up_proj":"fc1",
+            }
+
         layer_name_prefix = "model.layers"
     elif "opt" in args.net.lower():
         layers = model.model.decoder.layers
@@ -216,6 +225,7 @@ def omniquant(
         # init smooth parameters
         set_quant_state(qlayer, weight_quant=False, act_quant=True)  # weight will be manually quantized before forward
         qlayer.let = args.let
+        qlayer.down_proj_smooth = getattr(args, "down_proj_smooth", False)
         use_shift = True 
         if is_llama or args.abits == 16:
             use_shift = False                   # deactivate channel-wise shifting for llama model and weight-only quantization
@@ -235,7 +245,18 @@ def omniquant(
                                 shift = torch.zeros_like(scale)
                             qlayer.register_parameter(f"{pairs[key]}_smooth_shift",torch.nn.Parameter(shift))
                             qlayer.register_parameter(f"{pairs[key]}_smooth_scale",torch.nn.Parameter(scale))
-                                
+
+            # # extra learnable scaling on the SwiGLU intermediate activation
+            # # (between up/gate projection and down projection)
+            # if getattr(args, "down_proj_smooth", False):
+            #     assert is_llama and hasattr(qlayer.mlp, "down_proj"), \
+            #         "--down_proj_smooth only supports LLaMA-style SwiGLU MLP"
+            #     down_name = f"{layer_name_prefix}.{i}.mlp.down_proj"
+            #     act = act_scales[down_name].to(device=dev, dtype=dtype).clamp(min=1e-5)
+            #     weight = qlayer.mlp.down_proj.weight.abs().max(dim=0)[0].clamp(min=1e-5)
+            #     scale = (act.pow(args.alpha)/weight.pow(1-args.alpha)).clamp(min=1e-5)
+            #     qlayer.register_parameter("fc2_smooth_scale", torch.nn.Parameter(scale))
+
         if args.resume:
             qlayer.load_state_dict(omni_parameters[i], strict=False)
         

@@ -60,6 +60,33 @@ def smooth_fc_fc_temporary(fc1, fc2, scales,shifts=None):
     fc2.temp_weight = fc2.weight * scales.view(1,-1)
 
 
+def smooth_swiglu_temporary(up_proj, down_proj, scales):
+    # SwiGLU intermediate smoothing:  down( act(gate(x)) * up(x) )
+    #   -> down( act(gate(x)) * (up(x)/s) )  with  W_down * s
+    # The gate branch is left untouched (non-linearity blocks folding),
+    # so 1/s is absorbed by up_proj only and s by down_proj. Scale-only.
+    up_proj.use_temporary_parameter = True
+    down_proj.use_temporary_parameter = True
+    if hasattr(up_proj, 'temp_weight'):
+        up_proj.temp_weight = up_proj.temp_weight / scales.view(-1, 1)
+        if hasattr(up_proj, 'temp_bias') and up_proj.temp_bias is not None:
+            up_proj.temp_bias = up_proj.temp_bias / scales.view(-1)
+    else:
+        up_proj.temp_weight = up_proj.weight / scales.view(-1, 1)
+        if up_proj.bias is not None:
+            up_proj.temp_bias = up_proj.bias / scales.view(-1)
+    down_proj.temp_weight = down_proj.weight * scales.view(1, -1)
+
+
+def smooth_swiglu_inplace(up_proj, down_proj, scales):
+    up_proj.use_temporary_parameter = False
+    down_proj.use_temporary_parameter = False
+    up_proj.weight.div_(scales.view(-1, 1))
+    if hasattr(up_proj, 'bias') and up_proj.bias is not None:
+        up_proj.bias.div_(scales.view(-1))
+    down_proj.weight.mul_(scales.view(1, -1))
+
+
 def smooth_q_k_temporary(q_proj, k_proj, scales):
     q_proj.use_temporary_parameter = True
     k_proj.use_temporary_parameter = True

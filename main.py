@@ -214,6 +214,9 @@ def main():
     parser.add_argument("--wd", type=float, default=0)
     parser.add_argument("--epochs", type=int, default=10)
     parser.add_argument("--let",default=False, action="store_true",help="activate learnable equivalent transformation")
+    parser.add_argument("--down_proj_smooth",default=False, action="store_true",
+        help="insert a learnable channel-wise scaling matrix on the SwiGLU intermediate activation "
+             "(between up/gate projection and down projection). Requires --let and a LLaMA-style MLP.")
     parser.add_argument("--lwc",default=False, action="store_true",help="activate learnable weight clipping")
     parser.add_argument("--aug_loss", default=False, action="store_true", help="calculate additional loss with same input")
     parser.add_argument("--symmetric",default=False, action="store_true", help="symmetric quantization")
@@ -242,6 +245,8 @@ def main():
     # check
     if args.epochs > 0:
         assert args.lwc or args.let
+    if args.down_proj_smooth:
+        assert args.let, "--down_proj_smooth requires --let to be enabled"
         
     if (args.wbits<16 and args.wbits>=8) or (args.abits<16 and args.abits>=8):
         args.deactive_amp = True
@@ -364,7 +369,9 @@ def main():
                     del module.out_smooth_scale
                     del module.out_smooth_shift
                     del module.fc1_smooth_scale
-                    del module.fc1_smooth_shift           
+                    del module.fc1_smooth_shift
+                    if args.down_proj_smooth and hasattr(module, "fc2_smooth_scale"):
+                        del module.fc2_smooth_scale
         lm.model.save_pretrained(args.save_dir)  
         lm.tokenizer.save_pretrained(args.save_dir) 
     evaluate(lm, args,logger)

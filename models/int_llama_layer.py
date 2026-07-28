@@ -291,6 +291,9 @@ class QuantLlamaDecoderLayer(nn.Module):
             smooth_q_k_temporary(self.self_attn.q_proj, self.self_attn.k_proj,
                                 self.qkt_smooth_scale)
             self.mlp.down_proj.temp_weight = self.mlp.down_proj.weight
+            if getattr(self, "down_proj_smooth", False):
+                smooth_swiglu_temporary(self.mlp.up_proj, self.mlp.down_proj,
+                                        self.fc2_smooth_scale)
         else:
             for name, module in self.named_modules():
                 if isinstance(module, QuantLinear):
@@ -326,6 +329,9 @@ class QuantLlamaDecoderLayer(nn.Module):
                                 self.out_smooth_scale, self.out_smooth_shift)
             smooth_q_k_inplace(self.self_attn.q_proj, self.self_attn.k_proj,
                                 self.qkt_smooth_scale)
+            if getattr(self, "down_proj_smooth", False):
+                smooth_swiglu_inplace(self.mlp.up_proj, self.mlp.down_proj,
+                                      self.fc2_smooth_scale)
         for name, module in self.named_modules():
             if isinstance(module, QuantLinear):
                 module.weight = module.weight_quantizer(module.weight)
