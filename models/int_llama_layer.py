@@ -121,7 +121,12 @@ class QuantLlamaAttention(nn.Module):
         kv_seq_len = key_states.shape[-2]
         if past_key_value is not None:
             kv_seq_len += past_key_value[0].shape[-2]
-        cos, sin = self.rotary_emb(value_states, seq_len=kv_seq_len)
+        try:
+            # transformers >= 4.43 removed the `seq_len` arg; rotary_emb now takes position_ids
+            cos, sin = self.rotary_emb(value_states, position_ids)
+        except TypeError:
+            # older transformers (<= 4.42)
+            cos, sin = self.rotary_emb(value_states, seq_len=kv_seq_len)
         query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin, position_ids)
 
 
